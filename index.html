@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket File Transfer</title>
+
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        .dropzone {
+            border: 2px dashed #94a3b8;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+
+        .dropzone.dragover {
+            background: #e2e8f0;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+
+    <div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+
+        <h1 class="text-2xl font-bold mb-6">🚀 WebSocket File Transfer Client</h1>
+
+        <!-- Step 1: Choose Mode -->
+        <div id="modeSelection" class="mb-6">
+            <h2 class="font-semibold mb-2">Select Mode</h2>
+            <div class="flex gap-3">
+                <button onclick="showScreen('sender')" class="px-4 py-2 bg-blue-600 text-white rounded">Send
+                    Data</button>
+                <button onclick="showScreen('receiver')" class="px-4 py-2 bg-green-600 text-white rounded">Receive
+                    Data</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Sender / Receiver Screen -->
+        <div id="mainScreen" class="hidden">
+
+            <!-- Connection Settings (only session id) -->
+            <div class="mb-6">
+                <h2 class="font-semibold mb-2">🔌 Connection</h2>
+                <input id="sessionId" class="p-2 border rounded w-full" placeholder="Enter Session ID">
+                <div class="mt-3 flex gap-3">
+                    <button id="connectButton" class="px-4 py-2 bg-blue-600 text-white rounded"></button>
+                </div>
+            </div>
+
+            <!-- Send Screen -->
+            <div id="sendScreen" class="hidden">
+                <h2 class="font-semibold mb-2">📁 Upload Files</h2>
+                <div id="dropzone" class="dropzone">
+                    Drop files here or click to browse
+                    <input type="file" id="fileInput" multiple style="display:none">
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="font-semibold mb-2">📊 Progress</h2>
+                    <div id="progressContainer"></div>
+                </div>
+            </div>
+
+            <!-- Receive Screen -->
+            <div id="receiveScreen" class="hidden">
+                <h2 class="font-semibold mb-2">📜 Log / Received Data</h2>
+                <div id="log" class="bg-gray-50 p-3 rounded h-64 overflow-auto border"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        let ws = null;
+        const CHUNK = 64 * 1024;
+        const progressContainer = document.getElementById("progressContainer");
+        const incomingFiles = {};
+
+        function log(msg) {
+            const box = document.getElementById("log");
+            const div = document.createElement("div");
+            div.innerHTML = msg;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // -----------------------------
+        // Show screen based on mode
+        // -----------------------------
+        let mode = null;
+        function showScreen(selectedMode) {
+            mode = selectedMode;
+            document.getElementById("modeSelection").classList.add("hidden");
+            document.getElementById("mainScreen").classList.remove("hidden");
+
+            if (mode === "sender") {
+                document.getElementById("sendScreen").classList.remove("hidden");
+                document.getElementById("receiveScreen").classList.add("hidden");
+                document.getElementById("connectButton").innerText = "Connect as Sender";
+                document.getElementById("connectButton").onclick = connectSender;
+            } else {
+                document.getElementById("sendScreen").classList.add("hidden");
+                document.getElementById("receiveScreen").classList.remove("hidden");
+                document.getElementById("connectButton").innerText = "Connect as Receiver";
+                document.getElementById("connectButton").onclick = connectReceiver;
+            }
+        }
+
+        // -----------------------------
+        // CONNECTIONS
+        // -----------------------------
+        function connectSender() { connect("sender"); }
+        function connectReceiver() { connect("receiver"); }
+
+        function connect(mode) {
+            const sessionId = document.getElementById("sessionId").value.trim();
+            if (!sessionId) { alert("Enter a Session ID"); return; }
+
+            const url = `wss://shareit-server-7.onrender.com/ws/${sessionId}/${mode}/${mode}`;
+            ws = new WebSocket(url);
+            ws.binaryType = "arraybuffer";
+
+            ws.onopen = () => {
+                log(`✅ Connected as ${mode}`);
+                // Change button text after connection
+                const btn = document.getElementById("connectButton");
+                btn.innerText = `Connected as ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+                btn.disabled = true; // Optional: disable button after connection
+            };
+
+            ws.onmessage = (e) => handleIncoming(e);
+            ws.onclose = () => log("❌ Disconnected");
+        }
+
+        // -----------------------------
+        // DRAG & DROP (Send)
+        // -----------------------------
+        const dz = document.getElementById("dropzone");
+        dz.onclick = () => document.getElementById("fileInput").click();
+        dz.ondragover = (e) => { e.preventDefault(); dz.classList.add("dragover"); };
+        dz.ondragleave = () => dz.classList.remove("dragover");
+        dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove("dragover"); handleFiles(e.dataTransfer.files); };
+        document.getElementById("fileInput").onchange = (e) => handleFiles(e.target.files);
+
+        function handleFiles(files) { [...files].forEach(sendFile); }
+
+        async function sendFile(file) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) { log("❌ Not connected."); return; }
+
+            const id = "progress_" + file.name.replace(/\W/g, "_");
+            progressContainer.innerHTML += `
+            <div class="mb-4">
+                <div class="flex justify-between">
+                    <span>${file.name}</span>
+                    <span id="${id}_percent">0%</span>
+                </div>
+                <div class="w-full bg-gray-300 rounded h-3">
+                    <div id="${id}_bar" class="bg-blue-600 h-3 rounded" style="width:0%"></div>
+                </div>
+            </div>
+        `;
+
+            let offset = 0;
+            log(`📤 Sending: ${file.name} (${file.size} bytes)`);
+
+            while (offset < file.size) {
+                const chunk = file.slice(offset, offset + CHUNK);
+                ws.send(await chunk.arrayBuffer());
+                offset += CHUNK;
+
+                const percent = Math.min(100, Math.round((offset / file.size) * 100));
+                document.getElementById(id + "_bar").style.width = percent + "%";
+                document.getElementById(id + "_percent").innerText = percent + "%";
+            }
+            log(`✅ Finished sending ${file.name}`);
+        }
+
+        // -----------------------------
+        // RECEIVER
+        // -----------------------------
+        function handleIncoming(e) {
+            const logBox = document.getElementById("log");
+
+            if (!(e.data instanceof ArrayBuffer)) {
+                log(`📩 Message: ${e.data}`);
+                return;
+            }
+
+            const fileId = "received_file";
+            if (!incomingFiles[fileId]) incomingFiles[fileId] = { chunks: [] };
+            incomingFiles[fileId].chunks.push(e.data);
+
+            const blob = new Blob(incomingFiles[fileId].chunks);
+            const url = URL.createObjectURL(blob);
+
+            const existing = document.getElementById("download_link");
+            if (existing) existing.remove();
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "received_file";
+            a.id = "download_link";
+            a.innerText = "✅ Download Complete File";
+            a.classList.add("block", "mb-3", "text-blue-600");
+            logBox.appendChild(a);
+        }
+
+    </script>
+
+</body>
+
+</html>
