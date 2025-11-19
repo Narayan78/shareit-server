@@ -164,19 +164,8 @@ async def startup_event():
 # Simple HTML Test Page
 # ------------------------
 @app.get("/")
-async def get():
-    html_content = """
-    <html>
-        <head>
-            <title>File Transfer Mediator</title>
-        </head>
-        <body>
-            <h1>WebSocket File Transfer Mediator is Running</h1>
-            <p>Use WebSocket endpoint: <code>/ws/{session_id}/{mode}/{user_id}</code></p>
-        </body>
-    </html>
-    """
-    return HTMLResponse(html_content)
+async def serve_index():
+    return FileResponse("index.html")
 
 
 # ------------------------
