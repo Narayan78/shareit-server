@@ -4,6 +4,7 @@ Supports multiple sessions, sender/receiver mode, and streaming of large files.
 """
 
 import asyncio
+import os
 import json
 import logging
 from datetime import datetime
