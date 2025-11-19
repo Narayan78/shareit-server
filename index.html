@@ -4,10 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>WebSocket File Transfer</title>
-
-    <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
         .dropzone {
             border: 2px dashed #94a3b8;
@@ -43,7 +40,7 @@
         <!-- Step 2: Sender / Receiver Screen -->
         <div id="mainScreen" class="hidden">
 
-            <!-- Connection Settings (only session id) -->
+            <!-- Connection Settings -->
             <div class="mb-6">
                 <h2 class="font-semibold mb-2">🔌 Connection</h2>
                 <input id="sessionId" class="p-2 border rounded w-full" placeholder="Enter Session ID">
@@ -68,7 +65,9 @@
 
             <!-- Receive Screen -->
             <div id="receiveScreen" class="hidden">
-                <h2 class="font-semibold mb-2">📜 Log / Received Data</h2>
+                <h2 class="font-semibold mb-2">📥 Receiving Files</h2>
+                <div id="receiveProgress" class="mb-4"></div>
+                <h2 class="font-semibold mb-2">📜 Log</h2>
                 <div id="log" class="bg-gray-50 p-3 rounded h-64 overflow-auto border"></div>
             </div>
 
@@ -79,8 +78,10 @@
     <script>
         let ws = null;
         const CHUNK = 64 * 1024;
+        const HEADER_MARKER = new Uint8Array([0xFF, 0xFE, 0xFD, 0xFC]); // Special marker for metadata
         const progressContainer = document.getElementById("progressContainer");
-        const incomingFiles = {};
+        const receiveProgress = document.getElementById("receiveProgress");
+        let currentFile = null;
 
         function log(msg) {
             const box = document.getElementById("log");
@@ -118,24 +119,24 @@
         function connectSender() { connect("sender"); }
         function connectReceiver() { connect("receiver"); }
 
-        function connect(mode) {
+        function connect(m) {
             const sessionId = document.getElementById("sessionId").value.trim();
             if (!sessionId) { alert("Enter a Session ID"); return; }
 
-            const url = `wss://shareit-server-7.onrender.com/ws/${sessionId}/${mode}/${mode}`;
+            const url = `wss://shareit-server-7.onrender.com/ws/${sessionId}/${m}/${m}`;
             ws = new WebSocket(url);
             ws.binaryType = "arraybuffer";
 
             ws.onopen = () => {
-                log(`✅ Connected as ${mode}`);
-                // Change button text after connection
+                log(`✅ Connected as ${m}`);
                 const btn = document.getElementById("connectButton");
-                btn.innerText = `Connected as ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-                btn.disabled = true; // Optional: disable button after connection
+                btn.innerText = `Connected as ${m.charAt(0).toUpperCase() + m.slice(1)}`;
+                btn.disabled = true;
             };
 
             ws.onmessage = (e) => handleIncoming(e);
             ws.onclose = () => log("❌ Disconnected");
+            ws.onerror = (e) => log("⚠️ Connection error");
         }
 
         // -----------------------------
@@ -150,8 +151,38 @@
 
         function handleFiles(files) { [...files].forEach(sendFile); }
 
+        // Encode metadata as binary header
+        function createMetadataHeader(filename, size, mimeType) {
+            const metadata = {
+                name: filename,
+                size: size,
+                type: mimeType || "application/octet-stream"
+            };
+            const jsonStr = JSON.stringify(metadata);
+            const encoder = new TextEncoder();
+            const jsonBytes = encoder.encode(jsonStr);
+            
+            // Create: [MARKER][LENGTH][JSON_DATA]
+            const header = new Uint8Array(4 + 4 + jsonBytes.length);
+            header.set(HEADER_MARKER, 0);
+            
+            // Write length as 4 bytes
+            const view = new DataView(header.buffer);
+            view.setUint32(4, jsonBytes.length, false);
+            
+            header.set(jsonBytes, 8);
+            return header.buffer;
+        }
+
         async function sendFile(file) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) { log("❌ Not connected."); return; }
+            if (!ws || ws.readyState !== WebSocket.OPEN) { 
+                log("❌ Not connected."); 
+                return; 
+            }
+
+            // Send metadata header
+            const header = createMetadataHeader(file.name, file.size, file.type);
+            ws.send(header);
 
             const id = "progress_" + file.name.replace(/\W/g, "_");
             progressContainer.innerHTML += `
@@ -167,17 +198,25 @@
         `;
 
             let offset = 0;
-            log(`📤 Sending: ${file.name} (${file.size} bytes)`);
+            log(`📤 Sending: ${file.name} (${formatBytes(file.size)})`);
 
             while (offset < file.size) {
                 const chunk = file.slice(offset, offset + CHUNK);
-                ws.send(await chunk.arrayBuffer());
+                const buffer = await chunk.arrayBuffer();
+                
+                // Wait for buffer to drain if needed
+                if (ws.bufferedAmount > CHUNK * 4) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+                
+                ws.send(buffer);
                 offset += CHUNK;
 
                 const percent = Math.min(100, Math.round((offset / file.size) * 100));
                 document.getElementById(id + "_bar").style.width = percent + "%";
                 document.getElementById(id + "_percent").innerText = percent + "%";
             }
+
             log(`✅ Finished sending ${file.name}`);
         }
 
@@ -185,30 +224,104 @@
         // RECEIVER
         // -----------------------------
         function handleIncoming(e) {
-            const logBox = document.getElementById("log");
+            if (!(e.data instanceof ArrayBuffer)) return;
 
-            if (!(e.data instanceof ArrayBuffer)) {
-                log(`📩 Message: ${e.data}`);
+            const data = new Uint8Array(e.data);
+            
+            // Check if this is a metadata header
+            if (data.length > 8 && 
+                data[0] === HEADER_MARKER[0] && 
+                data[1] === HEADER_MARKER[1] && 
+                data[2] === HEADER_MARKER[2] && 
+                data[3] === HEADER_MARKER[3]) {
+                
+                // Read metadata length
+                const view = new DataView(e.data);
+                const jsonLength = view.getUint32(4, false);
+                
+                // Extract and parse metadata
+                const jsonBytes = data.slice(8, 8 + jsonLength);
+                const decoder = new TextDecoder();
+                const jsonStr = decoder.decode(jsonBytes);
+                const metadata = JSON.parse(jsonStr);
+                
+                // Start new file
+                currentFile = {
+                    name: metadata.name,
+                    size: metadata.size,
+                    mimeType: metadata.type,
+                    chunks: [],
+                    received: 0
+                };
+                
+                log(`📥 Receiving: ${metadata.name} (${formatBytes(metadata.size)})`);
+                
+                // Create progress bar
+                receiveProgress.innerHTML = `
+                    <div class="mb-4">
+                        <div class="flex justify-between">
+                            <span>${metadata.name}</span>
+                            <span id="recv_percent">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-300 rounded h-3">
+                            <div id="recv_bar" class="bg-green-600 h-3 rounded" style="width:0%"></div>
+                        </div>
+                        <div class="text-sm text-gray-600 mt-1">
+                            <span id="recv_size">0 B</span> / ${formatBytes(metadata.size)}
+                        </div>
+                    </div>
+                `;
                 return;
             }
 
-            const fileId = "received_file";
-            if (!incomingFiles[fileId]) incomingFiles[fileId] = { chunks: [] };
-            incomingFiles[fileId].chunks.push(e.data);
+            // Regular file chunk
+            if (currentFile) {
+                currentFile.chunks.push(e.data);
+                currentFile.received += e.data.byteLength;
 
-            const blob = new Blob(incomingFiles[fileId].chunks);
-            const url = URL.createObjectURL(blob);
+                // Update progress
+                const percent = Math.min(100, Math.round((currentFile.received / currentFile.size) * 100));
+                const bar = document.getElementById("recv_bar");
+                const percentEl = document.getElementById("recv_percent");
+                const sizeEl = document.getElementById("recv_size");
+                
+                if (bar) bar.style.width = percent + "%";
+                if (percentEl) percentEl.innerText = percent + "%";
+                if (sizeEl) sizeEl.innerText = formatBytes(currentFile.received);
 
-            const existing = document.getElementById("download_link");
-            if (existing) existing.remove();
+                // Check if file is complete
+                if (currentFile.received >= currentFile.size) {
+                    const blob = new Blob(currentFile.chunks, { type: currentFile.mimeType });
+                    const url = URL.createObjectURL(blob);
 
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "received_file";
-            a.id = "download_link";
-            a.innerText = "✅ Download Complete File";
-            a.classList.add("block", "mb-3", "text-blue-600");
-            logBox.appendChild(a);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = currentFile.name;
+                    a.innerText = `💾 Download ${currentFile.name}`;
+                    a.classList.add("block", "mb-3", "px-4", "py-2", "bg-green-600", "text-white", "rounded", "hover:bg-green-700");
+                    a.onclick = () => {
+                        setTimeout(() => URL.revokeObjectURL(url), 100);
+                    };
+                    
+                    const logBox = document.getElementById("log");
+                    logBox.appendChild(a);
+                    
+                    log(`✅ File ready: ${currentFile.name}`);
+                    receiveProgress.innerHTML = "";
+                    currentFile = null;
+                }
+            }
+        }
+
+        // -----------------------------
+        // UTILITIES
+        // -----------------------------
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
     </script>
