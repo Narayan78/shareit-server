@@ -665,3 +665,138 @@
                     </div>
                     <div class="flex justify-between mt-2 text-sm text-gray-600">
                         <span id="recvSize">0 B</span>
+                        <span id="recvSpeed">0 B/s</span>
+                    </div>
+                </div>
+            `;
+
+            showNotification(`Receiving: ${metadata.name}`, 'info');
+        }
+
+        function receiveChunk(bytes) {
+            state.currentFile.chunks.push(bytes);
+            state.currentFile.received += bytes.length;
+
+            const percent = Math.min(100, Math.round((state.currentFile.received / state.currentFile.size) * 100));
+            const elapsed = (Date.now() - state.currentFile.startTime) / 1000;
+            const speed = state.currentFile.received / elapsed;
+
+            // Update UI
+            const progressBar = document.getElementById('recvProgress');
+            const percentEl = document.getElementById('recvPercent');
+            const sizeEl = document.getElementById('recvSize');
+            const speedEl = document.getElementById('recvSpeed');
+
+            if (progressBar) progressBar.style.width = `${percent}%`;
+            if (percentEl) percentEl.textContent = `${percent}%`;
+            if (sizeEl) sizeEl.textContent = formatBytes(state.currentFile.received);
+            if (speedEl) speedEl.textContent = `${formatBytes(speed)}/s`;
+
+            // Update receive stats
+            updateReceiveStats(speed);
+
+            // Check if complete
+            if (state.currentFile.received >= state.currentFile.size) {
+                completeFileReceive();
+            }
+        }
+
+        function completeFileReceive() {
+            const blob = new Blob(state.currentFile.chunks, { type: state.currentFile.type });
+            const url = URL.createObjectURL(blob);
+            
+            const fileInfo = {
+                name: state.currentFile.name,
+                size: state.currentFile.size,
+                type: state.currentFile.type,
+                url: url,
+                timestamp: new Date().toISOString()
+            };
+
+            state.receivedFiles.push(fileInfo);
+            displayDownloadedFile(fileInfo);
+
+            showNotification(`Received: ${state.currentFile.name}`, 'success');
+            state.currentFile = null;
+
+            document.getElementById('downloadedPanel').classList.remove('hidden');
+        }
+
+        function displayDownloadedFile(file) {
+            const container = document.getElementById('downloadList');
+            const fileDiv = document.createElement('div');
+            fileDiv.className = 'flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl hover:shadow-md transition-all';
+            fileDiv.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                        <span class="text-2xl">${getFileIcon(file.type)}</span>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-900">${file.name}</p>
+                        <p class="text-sm text-gray-600">${formatBytes(file.size)} • ${new Date(file.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                </div>
+                <a href="${file.url}" download="${file.name}" 
+                    class="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all transform hover:scale-105 shadow-md">
+                    💾 Download
+                </a>
+            `;
+            container.insertBefore(fileDiv, container.firstChild);
+        }
+
+        function updateReceiveStats(speed) {
+            document.getElementById('receiveStats').innerHTML = `
+                <div class="text-center p-3 bg-green-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Download Speed</div>
+                    <div class="speed-badge text-white px-3 py-1 rounded-full inline-block font-bold">
+                        ${formatBytes(speed)}/s
+                    </div>
+                </div>
+                <div class="text-center p-3 bg-blue-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Files Received</div>
+                    <div class="text-xl font-bold text-blue-600">${state.receivedFiles.length}</div>
+                </div>
+            `;
+        }
+
+        // ===========================
+        // UTILITY FUNCTIONS
+        // ===========================
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || !isFinite(seconds)) return '--';
+            if (seconds < 60) return `${Math.round(seconds)}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+            return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+        }
+
+        function getFileIcon(mimeType) {
+            if (!mimeType) return '📄';
+            if (mimeType.startsWith('image/')) return '🖼️';
+            if (mimeType.startsWith('video/')) return '🎬';
+            if (mimeType.startsWith('audio/')) return '🎵';
+            if (mimeType.includes('pdf')) return '📕';
+            if (mimeType.includes('zip') || mimeType.includes('compressed')) return '🗜️';
+            if (mimeType.includes('text')) return '📝';
+            if (mimeType.includes('word')) return '📘';
+            if (mimeType.includes('sheet') || mimeType.includes('excel')) return '📊';
+            if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️';
+            return '📄';
+        }
+
+        // Auto-generate session ID on load
+        window.addEventListener('DOMContentLoaded', () => {
+            generateSessionId();
+        });
+    </script>
+
+</body>
+</html>
