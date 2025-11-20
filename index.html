@@ -1,331 +1,667 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <title>WebSocket File Transfer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional File Transfer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.7; }
+            100% { transform: scale(0.95); opacity: 1; }
+        }
+        .pulse-animation { animation: pulse-ring 2s ease-in-out infinite; }
+        
         .dropzone {
-            border: 2px dashed #94a3b8;
-            padding: 30px;
-            text-align: center;
-            border-radius: 10px;
-            transition: background 0.2s;
+            border: 3px dashed #cbd5e1;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-
         .dropzone.dragover {
-            background: #e2e8f0;
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+            transform: scale(1.02);
         }
+        .dropzone::before {
+            content: '';
+            position: absolute;
+            top: -2px; right: -2px; bottom: -2px; left: -2px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: -1;
+            border-radius: 12px;
+        }
+        .dropzone.dragover::before { opacity: 0.1; }
+        
+        .speed-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes slide-up {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .slide-up { animation: slide-up 0.4s ease-out; }
+        
+        .progress-bar {
+            transition: width 0.3s ease-out;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .connected { background: #10b981; box-shadow: 0 0 10px #10b981; }
+        .connecting { background: #f59e0b; animation: pulse 1s ease-in-out infinite; }
+        .disconnected { background: #ef4444; }
     </style>
 </head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
 
-<body class="bg-gray-100">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white text-xl font-bold">⚡</span>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">File Transfer Pro</h1>
+                        <p class="text-xs text-gray-500">Secure WebSocket Transfer</p>
+                    </div>
+                </div>
+                <div id="connectionStatus" class="flex items-center text-sm">
+                    <span class="connection-indicator disconnected"></span>
+                    <span class="text-gray-600">Disconnected</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
-
-        <h1 class="text-2xl font-bold mb-6">🚀 WebSocket File Transfer Client</h1>
-
-        <!-- Step 1: Choose Mode -->
-        <div id="modeSelection" class="mb-6">
-            <h2 class="font-semibold mb-2">Select Mode</h2>
-            <div class="flex gap-3">
-                <button onclick="showScreen('sender')" class="px-4 py-2 bg-blue-600 text-white rounded">Send
-                    Data</button>
-                <button onclick="showScreen('receiver')" class="px-4 py-2 bg-green-600 text-white rounded">Receive
-                    Data</button>
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Mode Selection -->
+        <div id="modeSelection" class="slide-up">
+            <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Choose Your Mode</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Send Mode -->
+                    <button onclick="selectMode('sender')" 
+                        class="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl p-8 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl">
+                        <div class="relative z-10">
+                            <div class="text-5xl mb-4">📤</div>
+                            <h3 class="text-2xl font-bold mb-2">Send Files</h3>
+                            <p class="text-blue-100 text-sm">Transfer files to another device</p>
+                            <div class="mt-4 flex items-center justify-center space-x-2 text-sm">
+                                <span class="px-3 py-1 bg-white/20 rounded-full">Fast</span>
+                                <span class="px-3 py-1 bg-white/20 rounded-full">Secure</span>
+                            </div>
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </button>
+                    
+                    <!-- Receive Mode -->
+                    <button onclick="selectMode('receiver')" 
+                        class="group relative overflow-hidden bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl p-8 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl">
+                        <div class="relative z-10">
+                            <div class="text-5xl mb-4">📥</div>
+                            <h3 class="text-2xl font-bold mb-2">Receive Files</h3>
+                            <p class="text-green-100 text-sm">Get files from another device</p>
+                            <div class="mt-4 flex items-center justify-center space-x-2 text-sm">
+                                <span class="px-3 py-1 bg-white/20 rounded-full">Reliable</span>
+                                <span class="px-3 py-1 bg-white/20 rounded-full">Easy</span>
+                            </div>
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Step 2: Sender / Receiver Screen -->
+        <!-- Main Screen -->
         <div id="mainScreen" class="hidden">
+            
+            <!-- Connection Panel -->
+            <div class="bg-white rounded-2xl shadow-xl p-6 mb-6 slide-up">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">🔌</span>
+                    Connection Setup
+                </h2>
+                <div class="flex gap-3">
+                    <input 
+                        id="sessionId" 
+                        type="text"
+                        class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                        placeholder="Enter or generate Session ID">
+                    <button 
+                        onclick="generateSessionId()"
+                        class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all">
+                        🎲 Random
+                    </button>
+                    <button 
+                        id="connectBtn"
+                        onclick="connect()"
+                        class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg">
+                        Connect
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-3">💡 Share this Session ID with the other person to connect</p>
+            </div>
 
-            <!-- Connection Settings -->
-            <div class="mb-6">
-                <h2 class="font-semibold mb-2">🔌 Connection</h2>
-                <input id="sessionId" class="p-2 border rounded w-full" placeholder="Enter Session ID">
-                <div class="mt-3 flex gap-3">
-                    <button id="connectButton" class="px-4 py-2 bg-blue-600 text-white rounded"></button>
+            <!-- Sender Screen -->
+            <div id="senderScreen" class="hidden space-y-6">
+                
+                <!-- Upload Zone -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 slide-up">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">📁</span>
+                        Upload Files
+                    </h2>
+                    
+                    <div id="dropzone" class="dropzone rounded-xl p-12 text-center cursor-pointer">
+                        <div class="text-5xl mb-4">📎</div>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-2">Drop files here</h3>
+                        <p class="text-gray-500 mb-4">or click to browse</p>
+                        <div class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium">
+                            <span>Choose Files</span>
+                        </div>
+                        <input type="file" id="fileInput" multiple class="hidden">
+                    </div>
+                </div>
+
+                <!-- Transfer Queue -->
+                <div id="queuePanel" class="bg-white rounded-2xl shadow-xl p-6 hidden slide-up">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                            <span class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">📊</span>
+                            Transfer Queue
+                        </h2>
+                        <button onclick="clearQueue()" class="text-sm text-red-600 hover:text-red-700 font-medium">Clear All</button>
+                    </div>
+                    <div id="fileQueue" class="space-y-3"></div>
+                </div>
+
+                <!-- Progress Panel -->
+                <div id="progressPanel" class="bg-white rounded-2xl shadow-xl p-6 hidden slide-up">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">⚡</span>
+                        Transfer Progress
+                    </h2>
+                    <div id="currentTransfer" class="mb-4"></div>
+                    <div id="stats" class="grid grid-cols-3 gap-4 mt-4"></div>
                 </div>
             </div>
 
-            <!-- Send Screen -->
-            <div id="sendScreen" class="hidden">
-                <h2 class="font-semibold mb-2">📁 Upload Files</h2>
-                <div id="dropzone" class="dropzone">
-                    Drop files here or click to browse
-                    <input type="file" id="fileInput" multiple style="display:none">
+            <!-- Receiver Screen -->
+            <div id="receiverScreen" class="hidden space-y-6">
+                
+                <!-- Waiting State -->
+                <div id="waitingState" class="bg-white rounded-2xl shadow-xl p-12 text-center slide-up">
+                    <div class="pulse-animation inline-block mb-6">
+                        <div class="w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto">
+                            <span class="text-4xl">📡</span>
+                        </div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">Waiting for Sender...</h2>
+                    <p class="text-gray-600 mb-6">Make sure the sender has the same Session ID</p>
+                    <div class="inline-flex items-center space-x-2 px-6 py-3 bg-green-100 text-green-700 rounded-xl">
+                        <span class="animate-pulse">●</span>
+                        <span class="font-medium">Ready to receive</span>
+                    </div>
                 </div>
 
-                <div class="mb-6">
-                    <h2 class="font-semibold mb-2">📊 Progress</h2>
-                    <div id="progressContainer"></div>
+                <!-- Receiving Progress -->
+                <div id="receivingPanel" class="bg-white rounded-2xl shadow-xl p-6 hidden slide-up">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">📥</span>
+                        Receiving Files
+                    </h2>
+                    <div id="receiveProgress"></div>
+                    <div id="receiveStats" class="grid grid-cols-2 gap-4 mt-4"></div>
                 </div>
-            </div>
 
-            <!-- Receive Screen -->
-            <div id="receiveScreen" class="hidden">
-                <h2 class="font-semibold mb-2">📥 Receiving Files</h2>
-                <div id="receiveProgress" class="mb-4"></div>
-                <h2 class="font-semibold mb-2">📜 Log</h2>
-                <div id="log" class="bg-gray-50 p-3 rounded h-64 overflow-auto border"></div>
+                <!-- Downloaded Files -->
+                <div id="downloadedPanel" class="bg-white rounded-2xl shadow-xl p-6 hidden slide-up">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">💾</span>
+                        Downloaded Files
+                    </h2>
+                    <div id="downloadList" class="space-y-3"></div>
+                </div>
             </div>
 
         </div>
-
     </div>
 
     <script>
-        let ws = null;
-        const CHUNK = 64 * 1024;
-        const HEADER_MARKER = new Uint8Array([0xFF, 0xFE, 0xFD, 0xFC]); // Special marker for metadata
-        const progressContainer = document.getElementById("progressContainer");
-        const receiveProgress = document.getElementById("receiveProgress");
-        let currentFile = null;
+        // Configuration
+        const CONFIG = {
+            SERVER_URL: 'wss://shareit-server-7.onrender.com',
+            CHUNK_SIZE: 256 * 1024, // 256KB - optimized for speed
+            MAX_BUFFER: 1024 * 1024, // 1MB buffer threshold
+            HEADER_MARKER: new Uint8Array([0xFF, 0xFE, 0xFD, 0xFC]),
+            RECONNECT_DELAY: 3000
+        };
 
-        function log(msg) {
-            const box = document.getElementById("log");
-            const div = document.createElement("div");
-            div.innerHTML = msg;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
+        // State
+        let state = {
+            ws: null,
+            mode: null,
+            sessionId: null,
+            fileQueue: [],
+            currentFile: null,
+            isTransferring: false,
+            stats: {
+                totalBytes: 0,
+                transferredBytes: 0,
+                startTime: null,
+                filesCompleted: 0,
+                currentSpeed: 0
+            },
+            receivedFiles: []
+        };
 
-        // -----------------------------
-        // Show screen based on mode
-        // -----------------------------
-        let mode = null;
-        function showScreen(selectedMode) {
-            mode = selectedMode;
-            document.getElementById("modeSelection").classList.add("hidden");
-            document.getElementById("mainScreen").classList.remove("hidden");
-
-            if (mode === "sender") {
-                document.getElementById("sendScreen").classList.remove("hidden");
-                document.getElementById("receiveScreen").classList.add("hidden");
-                document.getElementById("connectButton").innerText = "Connect as Sender";
-                document.getElementById("connectButton").onclick = connectSender;
+        // ===========================
+        // UI HELPERS
+        // ===========================
+        
+        function selectMode(mode) {
+            state.mode = mode;
+            document.getElementById('modeSelection').classList.add('hidden');
+            document.getElementById('mainScreen').classList.remove('hidden');
+            
+            if (mode === 'sender') {
+                document.getElementById('senderScreen').classList.remove('hidden');
+                setupDropzone();
             } else {
-                document.getElementById("sendScreen").classList.add("hidden");
-                document.getElementById("receiveScreen").classList.remove("hidden");
-                document.getElementById("connectButton").innerText = "Connect as Receiver";
-                document.getElementById("connectButton").onclick = connectReceiver;
+                document.getElementById('receiverScreen').classList.remove('hidden');
             }
         }
 
-        // -----------------------------
-        // CONNECTIONS
-        // -----------------------------
-        function connectSender() { connect("sender"); }
-        function connectReceiver() { connect("receiver"); }
-
-        function connect(m) {
-            const sessionId = document.getElementById("sessionId").value.trim();
-            if (!sessionId) { alert("Enter a Session ID"); return; }
-
-            const url = `wss://shareit-server-7.onrender.com/ws/${sessionId}/${m}/${m}`;
-            ws = new WebSocket(url);
-            ws.binaryType = "arraybuffer";
-
-            ws.onopen = () => {
-                log(`✅ Connected as ${m}`);
-                const btn = document.getElementById("connectButton");
-                btn.innerText = `Connected as ${m.charAt(0).toUpperCase() + m.slice(1)}`;
-                btn.disabled = true;
-            };
-
-            ws.onmessage = (e) => handleIncoming(e);
-            ws.onclose = () => log("❌ Disconnected");
-            ws.onerror = (e) => log("⚠️ Connection error");
+        function generateSessionId() {
+            const id = Math.random().toString(36).substring(2, 10).toUpperCase();
+            document.getElementById('sessionId').value = id;
         }
 
-        // -----------------------------
-        // DRAG & DROP (Send)
-        // -----------------------------
-        const dz = document.getElementById("dropzone");
-        dz.onclick = () => document.getElementById("fileInput").click();
-        dz.ondragover = (e) => { e.preventDefault(); dz.classList.add("dragover"); };
-        dz.ondragleave = () => dz.classList.remove("dragover");
-        dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove("dragover"); handleFiles(e.dataTransfer.files); };
-        document.getElementById("fileInput").onchange = (e) => handleFiles(e.target.files);
+        function updateConnectionStatus(status) {
+            const indicator = document.querySelector('.connection-indicator');
+            const text = document.querySelector('#connectionStatus span:last-child');
+            
+            indicator.className = 'connection-indicator';
+            if (status === 'connected') {
+                indicator.classList.add('connected');
+                text.textContent = 'Connected';
+                text.className = 'text-green-600 font-medium';
+            } else if (status === 'connecting') {
+                indicator.classList.add('connecting');
+                text.textContent = 'Connecting...';
+                text.className = 'text-yellow-600';
+            } else {
+                indicator.classList.add('disconnected');
+                text.textContent = 'Disconnected';
+                text.className = 'text-gray-600';
+            }
+        }
 
-        function handleFiles(files) { [...files].forEach(sendFile); }
+        function showNotification(message, type = 'info') {
+            // Simple notification - could be enhanced with a toast library
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
 
-        // Encode metadata as binary header
-        function createMetadataHeader(filename, size, mimeType) {
-            const metadata = {
-                name: filename,
-                size: size,
-                type: mimeType || "application/octet-stream"
+        // ===========================
+        // CONNECTION
+        // ===========================
+        
+        function connect() {
+            const sessionId = document.getElementById('sessionId').value.trim();
+            if (!sessionId) {
+                alert('Please enter a Session ID');
+                return;
+            }
+
+            state.sessionId = sessionId;
+            const url = `${CONFIG.SERVER_URL}/ws/${sessionId}/${state.mode}/${state.mode}`;
+            
+            updateConnectionStatus('connecting');
+            state.ws = new WebSocket(url);
+            state.ws.binaryType = 'arraybuffer';
+
+            state.ws.onopen = handleConnect;
+            state.ws.onmessage = handleMessage;
+            state.ws.onclose = handleDisconnect;
+            state.ws.onerror = handleError;
+
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('sessionId').disabled = true;
+        }
+
+        function handleConnect() {
+            updateConnectionStatus('connected');
+            showNotification(`Connected as ${state.mode}`, 'success');
+            
+            if (state.mode === 'receiver') {
+                document.getElementById('waitingState').classList.remove('hidden');
+            }
+        }
+
+        function handleDisconnect() {
+            updateConnectionStatus('disconnected');
+            showNotification('Disconnected from server', 'warning');
+            
+            // Enable reconnection
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('sessionId').disabled = false;
+        }
+
+        function handleError(error) {
+            console.error('WebSocket error:', error);
+            showNotification('Connection error occurred', 'error');
+        }
+
+        function handleMessage(event) {
+            if (typeof event.data === 'string') {
+                try {
+                    const msg = JSON.parse(event.data);
+                    handleControlMessage(msg);
+                } catch (e) {
+                    console.error('Failed to parse message:', e);
+                }
+            } else if (event.data instanceof ArrayBuffer) {
+                handleBinaryData(event.data);
+            }
+        }
+
+        function handleControlMessage(msg) {
+            if (msg.type === 'ping') {
+                state.ws.send(JSON.stringify({ type: 'pong' }));
+            } else if (msg.type === 'speed_update') {
+                updateSpeedDisplay(msg.speed);
+            } else if (msg.status === 'ready') {
+                showNotification('Receiver connected! Ready to send', 'success');
+                if (state.mode === 'sender' && state.fileQueue.length > 0) {
+                    startTransferQueue();
+                }
+            } else if (msg.status === 'connected' && state.mode === 'receiver') {
+                document.getElementById('waitingState').classList.add('hidden');
+                document.getElementById('receivingPanel').classList.remove('hidden');
+                showNotification('Sender connected! Ready to receive', 'success');
+            }
+        }
+
+        // ===========================
+        // SENDER: FILE HANDLING
+        // ===========================
+        
+        function setupDropzone() {
+            const dz = document.getElementById('dropzone');
+            const input = document.getElementById('fileInput');
+
+            dz.onclick = () => input.click();
+            dz.ondragover = (e) => {
+                e.preventDefault();
+                dz.classList.add('dragover');
             };
+            dz.ondragleave = () => dz.classList.remove('dragover');
+            dz.ondrop = (e) => {
+                e.preventDefault();
+                dz.classList.remove('dragover');
+                handleFiles(Array.from(e.dataTransfer.files));
+            };
+            input.onchange = (e) => handleFiles(Array.from(e.target.files));
+        }
+
+        function handleFiles(files) {
+            if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+                alert('Please connect first!');
+                return;
+            }
+
+            state.fileQueue.push(...files);
+            state.stats.totalBytes += files.reduce((sum, f) => sum + f.size, 0);
+            
+            updateFileQueue();
+            document.getElementById('queuePanel').classList.remove('hidden');
+
+            // Auto-start if not already transferring
+            if (!state.isTransferring) {
+                startTransferQueue();
+            }
+        }
+
+        function updateFileQueue() {
+            const container = document.getElementById('fileQueue');
+            container.innerHTML = state.fileQueue.map((file, idx) => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <span class="text-xl">${getFileIcon(file.type)}</span>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-900">${file.name}</p>
+                            <p class="text-sm text-gray-500">${formatBytes(file.size)}</p>
+                        </div>
+                    </div>
+                    <button onclick="removeFromQueue(${idx})" class="text-red-500 hover:text-red-700 transition-colors">
+                        <span class="text-xl">×</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeFromQueue(idx) {
+            const file = state.fileQueue[idx];
+            state.stats.totalBytes -= file.size;
+            state.fileQueue.splice(idx, 1);
+            updateFileQueue();
+            
+            if (state.fileQueue.length === 0) {
+                document.getElementById('queuePanel').classList.add('hidden');
+            }
+        }
+
+        function clearQueue() {
+            if (state.isTransferring) {
+                alert('Cannot clear queue while transferring');
+                return;
+            }
+            state.fileQueue = [];
+            state.stats.totalBytes = 0;
+            document.getElementById('queuePanel').classList.add('hidden');
+        }
+
+        // ===========================
+        // SENDER: FILE TRANSFER
+        // ===========================
+        
+        async function startTransferQueue() {
+            if (state.isTransferring || state.fileQueue.length === 0) return;
+            
+            state.isTransferring = true;
+            state.stats.startTime = Date.now();
+            state.stats.transferredBytes = 0;
+            
+            document.getElementById('progressPanel').classList.remove('hidden');
+
+            while (state.fileQueue.length > 0) {
+                const file = state.fileQueue.shift();
+                await sendFile(file);
+                state.stats.filesCompleted++;
+                updateFileQueue();
+            }
+
+            state.isTransferring = false;
+            showNotification('All files transferred successfully!', 'success');
+        }
+
+        async function sendFile(file) {
+            // Send metadata header
+            const header = createMetadataHeader(file.name, file.size, file.type);
+            state.ws.send(header);
+
+            // Update UI
+            document.getElementById('currentTransfer').innerHTML = `
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                <span class="text-2xl">${getFileIcon(file.type)}</span>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900">${file.name}</p>
+                                <p class="text-sm text-gray-600">${formatBytes(file.size)}</p>
+                            </div>
+                        </div>
+                        <div id="filePercent" class="text-2xl font-bold text-blue-600">0%</div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div id="fileProgress" class="progress-bar h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+
+            let offset = 0;
+            const startTime = Date.now();
+
+            while (offset < file.size) {
+                // Wait for buffer to drain
+                while (state.ws.bufferedAmount > CONFIG.MAX_BUFFER) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+
+                const chunk = file.slice(offset, offset + CONFIG.CHUNK_SIZE);
+                const buffer = await chunk.arrayBuffer();
+                state.ws.send(buffer);
+                
+                offset += chunk.size;
+                state.stats.transferredBytes += chunk.size;
+
+                // Update progress
+                const percent = Math.round((offset / file.size) * 100);
+                document.getElementById('fileProgress').style.width = `${percent}%`;
+                document.getElementById('filePercent').textContent = `${percent}%`;
+
+                // Update stats
+                const elapsed = (Date.now() - startTime) / 1000;
+                const speed = offset / elapsed;
+                state.stats.currentSpeed = speed;
+                updateStatsDisplay();
+            }
+
+            showNotification(`Sent: ${file.name}`, 'success');
+        }
+
+        function createMetadataHeader(name, size, type) {
+            const metadata = { name, size, type: type || 'application/octet-stream' };
             const jsonStr = JSON.stringify(metadata);
             const encoder = new TextEncoder();
             const jsonBytes = encoder.encode(jsonStr);
             
-            // Create: [MARKER][LENGTH][JSON_DATA]
             const header = new Uint8Array(4 + 4 + jsonBytes.length);
-            header.set(HEADER_MARKER, 0);
+            header.set(CONFIG.HEADER_MARKER, 0);
             
-            // Write length as 4 bytes
             const view = new DataView(header.buffer);
             view.setUint32(4, jsonBytes.length, false);
-            
             header.set(jsonBytes, 8);
+            
             return header.buffer;
         }
 
-        async function sendFile(file) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) { 
-                log("❌ Not connected."); 
-                return; 
-            }
+        function updateStatsDisplay() {
+            const { transferredBytes, totalBytes, currentSpeed, filesCompleted } = state.stats;
+            const remaining = totalBytes - transferredBytes;
+            const eta = currentSpeed > 0 ? remaining / currentSpeed : 0;
 
-            // Send metadata header
-            const header = createMetadataHeader(file.name, file.size, file.type);
-            ws.send(header);
-
-            const id = "progress_" + file.name.replace(/\W/g, "_");
-            progressContainer.innerHTML += `
-            <div class="mb-4">
-                <div class="flex justify-between">
-                    <span>${file.name}</span>
-                    <span id="${id}_percent">0%</span>
+            document.getElementById('stats').innerHTML = `
+                <div class="text-center p-3 bg-blue-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Speed</div>
+                    <div class="speed-badge text-white px-3 py-1 rounded-full inline-block font-bold">
+                        ${formatBytes(currentSpeed)}/s
+                    </div>
                 </div>
-                <div class="w-full bg-gray-300 rounded h-3">
-                    <div id="${id}_bar" class="bg-blue-600 h-3 rounded" style="width:0%"></div>
+                <div class="text-center p-3 bg-green-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">Completed</div>
+                    <div class="text-xl font-bold text-green-600">${filesCompleted}</div>
                 </div>
-            </div>
-        `;
-
-            let offset = 0;
-            log(`📤 Sending: ${file.name} (${formatBytes(file.size)})`);
-
-            while (offset < file.size) {
-                const chunk = file.slice(offset, offset + CHUNK);
-                const buffer = await chunk.arrayBuffer();
-                
-                // Wait for buffer to drain if needed
-                if (ws.bufferedAmount > CHUNK * 4) {
-                    await new Promise(resolve => setTimeout(resolve, 10));
-                }
-                
-                ws.send(buffer);
-                offset += CHUNK;
-
-                const percent = Math.min(100, Math.round((offset / file.size) * 100));
-                document.getElementById(id + "_bar").style.width = percent + "%";
-                document.getElementById(id + "_percent").innerText = percent + "%";
-            }
-
-            log(`✅ Finished sending ${file.name}`);
+                <div class="text-center p-3 bg-purple-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">ETA</div>
+                    <div class="text-xl font-bold text-purple-600">${formatTime(eta)}</div>
+                </div>
+            `;
         }
 
-        // -----------------------------
-        // RECEIVER
-        // -----------------------------
-        function handleIncoming(e) {
-            if (!(e.data instanceof ArrayBuffer)) return;
+        function updateSpeedDisplay(speed) {
+            state.stats.currentSpeed = speed;
+        }
 
-            const data = new Uint8Array(e.data);
+        // ===========================
+        // RECEIVER: FILE HANDLING
+        // ===========================
+        
+        function handleBinaryData(data) {
+            const bytes = new Uint8Array(data);
             
-            // Check if this is a metadata header
-            if (data.length > 8 && 
-                data[0] === HEADER_MARKER[0] && 
-                data[1] === HEADER_MARKER[1] && 
-                data[2] === HEADER_MARKER[2] && 
-                data[3] === HEADER_MARKER[3]) {
+            // Check for metadata header
+            if (bytes.length > 8 && 
+                bytes[0] === CONFIG.HEADER_MARKER[0] && 
+                bytes[1] === CONFIG.HEADER_MARKER[1]) {
                 
-                // Read metadata length
-                const view = new DataView(e.data);
+                const view = new DataView(data);
                 const jsonLength = view.getUint32(4, false);
-                
-                // Extract and parse metadata
-                const jsonBytes = data.slice(8, 8 + jsonLength);
+                const jsonBytes = bytes.slice(8, 8 + jsonLength);
                 const decoder = new TextDecoder();
-                const jsonStr = decoder.decode(jsonBytes);
-                const metadata = JSON.parse(jsonStr);
+                const metadata = JSON.parse(decoder.decode(jsonBytes));
                 
-                // Start new file
-                currentFile = {
-                    name: metadata.name,
-                    size: metadata.size,
-                    mimeType: metadata.type,
-                    chunks: [],
-                    received: 0
-                };
-                
-                log(`📥 Receiving: ${metadata.name} (${formatBytes(metadata.size)})`);
-                
-                // Create progress bar
-                receiveProgress.innerHTML = `
-                    <div class="mb-4">
-                        <div class="flex justify-between">
-                            <span>${metadata.name}</span>
-                            <span id="recv_percent">0%</span>
-                        </div>
-                        <div class="w-full bg-gray-300 rounded h-3">
-                            <div id="recv_bar" class="bg-green-600 h-3 rounded" style="width:0%"></div>
-                        </div>
-                        <div class="text-sm text-gray-600 mt-1">
-                            <span id="recv_size">0 B</span> / ${formatBytes(metadata.size)}
-                        </div>
-                    </div>
-                `;
+                startReceivingFile(metadata);
                 return;
             }
 
-            // Regular file chunk
-            if (currentFile) {
-                currentFile.chunks.push(e.data);
-                currentFile.received += e.data.byteLength;
-
-                // Update progress
-                const percent = Math.min(100, Math.round((currentFile.received / currentFile.size) * 100));
-                const bar = document.getElementById("recv_bar");
-                const percentEl = document.getElementById("recv_percent");
-                const sizeEl = document.getElementById("recv_size");
-                
-                if (bar) bar.style.width = percent + "%";
-                if (percentEl) percentEl.innerText = percent + "%";
-                if (sizeEl) sizeEl.innerText = formatBytes(currentFile.received);
-
-                // Check if file is complete
-                if (currentFile.received >= currentFile.size) {
-                    const blob = new Blob(currentFile.chunks, { type: currentFile.mimeType });
-                    const url = URL.createObjectURL(blob);
-
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = currentFile.name;
-                    a.innerText = `💾 Download ${currentFile.name}`;
-                    a.classList.add("block", "mb-3", "px-4", "py-2", "bg-green-600", "text-white", "rounded", "hover:bg-green-700");
-                    a.onclick = () => {
-                        setTimeout(() => URL.revokeObjectURL(url), 100);
-                    };
-                    
-                    const logBox = document.getElementById("log");
-                    logBox.appendChild(a);
-                    
-                    log(`✅ File ready: ${currentFile.name}`);
-                    receiveProgress.innerHTML = "";
-                    currentFile = null;
-                }
+            // Regular chunk
+            if (state.currentFile) {
+                receiveChunk(bytes);
             }
         }
 
-        // -----------------------------
-        // UTILITIES
-        // -----------------------------
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-        }
+        function startReceivingFile(metadata) {
+            state.currentFile = {
+                name: metadata.name,
+                size: metadata.size,
+                type: metadata.type,
+                chunks: [],
+                received: 0,
+                startTime: Date.now()
+            };
 
-    </script>
-
-</body>
-
-</html>
+            document.getElementById('receiveProgress').innerHTML = `
+                <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                <span class="text-2xl">${getFileIcon(metadata.type)}</span>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900">${metadata.name}</p>
+                                <p class="text-sm text-gray-600">${formatBytes(metadata.size)}</p>
+                            </div>
+                        </div>
+                        <div id="recvPercent" class="text-2xl font-bold text-green-600">0%</div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div id="recvProgress" class="progress-bar h-full rounded-full bg-gradient-to-r from-green-500 to-blue-500" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between mt-2 text-sm text-gray-600">
+                        <span id="recvSize">0 B</span>
