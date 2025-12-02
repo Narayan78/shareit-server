@@ -63,7 +63,7 @@ async def handle_sender(websocket: WebSocket, session: TransferSession, user_id:
         "status": "waiting",
         "message": "Waiting for receiver...",
         "session_id": session_id,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     })
 
     # Wait for receiver with timeout
@@ -85,7 +85,7 @@ async def handle_sender(websocket: WebSocket, session: TransferSession, user_id:
     await websocket.send_json({
         "status": "ready",
         "message": "Receiver connected. Ready to transfer.",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "chat_history": session.messages
     })
 
@@ -173,7 +173,7 @@ async def handle_peer(websocket: WebSocket, session: TransferSession, user_id: s
         "status": "connected",
         "message": f"Connected to session. {peer_count} peer(s) in session.",
         "user_id": user_id,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "chat_history": session.messages
     })
 
@@ -184,7 +184,7 @@ async def handle_peer(websocket: WebSocket, session: TransferSession, user_id: s
                 await peer['websocket'].send_json({
                     "status": "peer_joined",
                     "message": "Another peer joined the session",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
                 })
             except:
                 pass
@@ -252,7 +252,7 @@ async def handle_peer(websocket: WebSocket, session: TransferSession, user_id: s
                     await peer['websocket'].send_json({
                         "type": "peer_left",
                         "message": "A peer left the session",
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.utcnow().isoformat() + "Z"
                     })
                 except:
                     pass
@@ -271,7 +271,7 @@ async def handle_receiver(websocket: WebSocket, session: TransferSession, user_i
         "status": "connected",
         "message": "Connected to sender",
         "metadata": session.metadata,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "chat_history": session.messages
     })
 
@@ -280,7 +280,7 @@ async def handle_receiver(websocket: WebSocket, session: TransferSession, user_i
             await session.sender.send_json({
                 "status": "receiver_connected",
                 "message": "Receiver connected",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.utcnow().isoformat() + "Z"
             })
         except:
             pass

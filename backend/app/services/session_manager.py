@@ -34,7 +34,7 @@ class TransferSession:
         msg_data = {
             "sender": sender,
             "message": message[:settings.MAX_MESSAGE_LENGTH],
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.utcnow().isoformat() + "Z"
         }
         self.messages.append(msg_data)
         if len(self.messages) > 100:
