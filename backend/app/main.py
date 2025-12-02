@@ -5,6 +5,8 @@ from .core.config import settings
 from .core.logging import logger
 from .api.endpoints import websocket
 from .services.session_manager import session_manager
+import os
+from pathlib import Path
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -37,16 +39,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-# ... existing code ...
 
-# Mount static files
-# Ensure we're pointing to the correct dist folder relative to this file
-# backend/app/main.py -> backend/ -> frontend/dist
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
+# Get the directory containing main.py
+BACKEND_DIR = Path(__file__).resolve().parent.parent  # Goes up to backend/
+DIST_DIR = BACKEND_DIR.parent / "frontend" / "dist"  # Goes to frontend/dist
 
-if os.path.exists(DIST_DIR):
-    app.mount("/assets", StaticFiles(directory=os.path.join(DIST_DIR, "assets")), name="assets")
+print(f"Looking for frontend at: {DIST_DIR}")  # Debug log
+print(f"DIST_DIR exists: {DIST_DIR.exists()}")  # Debug log
+
+if DIST_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
 
 @app.get("/")
 async def root():
