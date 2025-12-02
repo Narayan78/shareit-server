@@ -39,31 +39,40 @@ function App() {
     <div className="min-h-screen">
       {/* Show connection manager only when not connected */}
       {status !== 'connected' && (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-          <div className="w-full max-w-md">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="inline-block w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
-                <span className="text-white text-3xl font-bold">⚡</span>
+        <div className="min-h-screen flex items-center justify-center p-4 relative">
+          {/* Floating particles effect */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute w-72 h-72 bg-white/10 rounded-full blur-3xl top-20 -left-20 animate-pulse"></div>
+            <div className="absolute w-96 h-96 bg-purple-300/20 rounded-full blur-3xl bottom-20 -right-20 animate-pulse" style={{ animationDelay: '1s' }}></div>
+            <div className="absolute w-80 h-80 bg-blue-300/20 rounded-full blur-3xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '2s' }}></div>
+          </div>
+          <div className="w-full max-w-md relative z-10">
+            {/* Header with enhanced glassmorphism */}
+            <div className="text-center mb-8 slide-up">
+              <div className="inline-block w-20 h-20 bg-white/20 backdrop-blur-xl border border-white/30 rounded-3xl flex items-center justify-center shadow-2xl mb-6 hover:scale-110 transition-transform duration-300">
+                <span className="text-white text-4xl font-bold drop-shadow-lg">⚡</span>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">ShareIt Pro</h1>
-              <p className="text-gray-600">Peer-to-Peer File Transfer</p>
+              <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">ShareIt Pro</h1>
+              <p className="text-white/90 text-lg drop-shadow">Peer-to-Peer File Transfer</p>
             </div>
 
-            <ConnectionManager
-              sessionId={sessionId}
-              setSessionId={setSessionId}
-              onConnect={() => connect(sessionId)}
-              status={status}
-            />
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
 
-            {/* Status indicator */}
-            <div className="mt-6 text-center">
-              <div className="inline-flex items-center text-sm bg-white px-4 py-2 rounded-full border shadow-sm">
-                <span className={`w-2.5 h-2.5 rounded-full mr-2 ${status === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' :
-                  status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'
+              <ConnectionManager
+                sessionId={sessionId}
+                setSessionId={setSessionId}
+                onConnect={() => connect(sessionId)}
+                status={status}
+              />
+            </div>
+
+            {/* Status indicator with enhanced styling */}
+            <div className="mt-6 text-center scale-in">
+              <div className="inline-flex items-center text-sm bg-white/20 backdrop-blur-xl px-6 py-3 rounded-full border border-white/30 shadow-lg">
+                <span className={`w-3 h-3 rounded-full mr-3 ${status === 'connected' ? 'bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)] animate-pulse' :
+                  status === 'connecting' ? 'bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.8)] animate-pulse' : 'bg-red-400 shadow-[0_0_12px_rgba(248,113,113,0.8)]'
                   }`}></span>
-                <span className="text-gray-600 font-medium capitalize">{status}</span>
+                <span className="text-white font-semibold capitalize drop-shadow">{status}</span>
               </div>
             </div>
           </div>

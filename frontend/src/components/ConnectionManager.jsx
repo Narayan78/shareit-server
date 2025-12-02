@@ -18,10 +18,10 @@ export function ConnectionManager({ sessionId, setSessionId, onConnect, status }
     const isConnected = status === 'connected';
 
     return (
-        <div className="bg-white rounded-2xl shadow-xl p-6 scale-in">
+        <div className="scale-in">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <span className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <span className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                         {isConnected ? '✓' : '🔗'}
                     </span>
                     {isConnected ? 'Connected' : 'Session Setup'}
@@ -44,20 +44,20 @@ export function ConnectionManager({ sessionId, setSessionId, onConnect, status }
                             value={sessionId}
                             onChange={(e) => setSessionId(e.target.value.toUpperCase())}
                             placeholder="Enter or generate session ID"
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none font-mono text-lg tracking-wider transition-all"
+                            className="w-full px-4 py-3 border-2 border-white/30 bg-white/20 backdrop-blur-sm rounded-xl focus:border-white focus:bg-white/30 focus:outline-none font-mono text-lg tracking-wider transition-all text-white placeholder-white/60"
                             maxLength={8}
                         />
                         {sessionId && (
                             <button
                                 onClick={copyToClipboard}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-lg transition-colors group"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-white/20 rounded-lg transition-colors group"
                             >
                                 {copied ? (
                                     <span className="text-green-500  text-sm font-medium flex items-center gap-1">
                                         ✓ Copied
                                     </span>
                                 ) : (
-                                    <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-white/70 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                     </svg>
                                 )}
@@ -86,7 +86,7 @@ export function ConnectionManager({ sessionId, setSessionId, onConnect, status }
                         )}
                     </button>
 
-                    <p className="text-sm text-gray-500 text-center">
+                    <p className="text-sm text-white/80 text-center">
                         Share this session ID with your peer to establish a connection
                     </p>
                 </div>

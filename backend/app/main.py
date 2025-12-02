@@ -33,6 +33,23 @@ async def startup_event():
     asyncio.create_task(session_manager.cleanup_stale_sessions())
     logger.info(f"{settings.PROJECT_NAME} started")
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
+# ... existing code ...
+
+# Mount static files
+# Ensure we're pointing to the correct dist folder relative to this file
+# backend/app/main.py -> backend/ -> frontend/dist
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
+
+if os.path.exists(DIST_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(DIST_DIR, "assets")), name="assets")
+
 @app.get("/")
 async def root():
-    return {"message": "File Transfer Pro API is running"}
+    if os.path.exists(os.path.join(DIST_DIR, "index.html")):
+        return FileResponse(os.path.join(DIST_DIR, "index.html"))
+    return {"message": "File Transfer Pro API is running (Frontend not built)"}

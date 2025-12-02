@@ -375,78 +375,84 @@ export function Chat({
 
     return (
         <>
-            <div className="fixed inset-0 bg-white flex flex-col z-50">
-                {/* Header */}
-                <div className="px-4 py-3 border-b bg-gradient-to-r from-blue-600 to-purple-600 text-white flex justify-between items-center shadow-md">
-                    <div className="flex items-center gap-3">
-                        <span className="text-2xl">💬</span>
-                        <div>
-                            <h3 className="font-semibold text-base">Chat & File Transfer</h3>
-                            <p className="text-xs text-blue-100">Peer-to-Peer</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={onClose} className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+            <div className="fixed inset-0 landing-bg flex flex-col z-50">
+                {/* Glass Overlay for Lightening */}
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-md z-0"></div>
 
-                {/* Messages & Files Area */}
-                <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-br from-gray-50 to-gray-100">
-                    <div className="max-w-4xl mx-auto space-y-2">
-                        {timelineItems.length === 0 && (
-                            <div className="text-center text-gray-400 mt-20">
-                                <div className="text-6xl mb-4">💬</div>
-                                <p className="text-lg font-medium">No messages yet</p>
-                                <p className="text-sm">Start chatting or share files!</p>
+                {/* Content Container */}
+                <div className="relative z-10 flex flex-col h-full">
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-white/20 bg-white/20 backdrop-blur-md text-gray-900 flex justify-between items-center shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">💬</span>
+                            <div>
+                                <h3 className="font-semibold text-base">Chat & File Transfer</h3>
+                                <p className="text-xs text-gray-600">Peer-to-Peer</p>
                             </div>
-                        )}
-
-                        {/* Render all timeline items in chronological order */}
-                        {timelineItems.map((item, index) => renderTimelineItem(item, index))}
-
-                        <div ref={messagesEndRef} />
-                    </div>
-                </div>
-
-                {/* Input Area */}
-                <div className="border-t bg-white px-4 py-3 shadow-lg">
-                    <div className="max-w-4xl mx-auto">
-                        <form onSubmit={handleSubmit} className="flex gap-2">
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                multiple
-                                className="hidden"
-                                onChange={handleFileSelect}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                                title="Attach file"
-                            >
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={onClose} className="text-gray-600 hover:text-gray-900 transition-colors p-2 hover:bg-white/20 rounded-lg">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                 </svg>
                             </button>
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none text-sm"
-                                placeholder="Type a message..."
-                            />
-                            <button
-                                type="submit"
-                                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-colors shadow-md font-medium text-sm"
-                            >
-                                Send
-                            </button>
-                        </form>
+                        </div>
+                    </div>
+
+                    {/* Messages & Files Area */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        <div className="max-w-4xl mx-auto space-y-2">
+                            {timelineItems.length === 0 && (
+                                <div className="text-center text-gray-500 mt-20">
+                                    <div className="text-6xl mb-4 opacity-70">💬</div>
+                                    <p className="text-lg font-medium">No messages yet</p>
+                                    <p className="text-sm opacity-80">Start chatting or share files!</p>
+                                </div>
+                            )}
+
+                            {/* Render all timeline items in chronological order */}
+                            {timelineItems.map((item, index) => renderTimelineItem(item, index))}
+
+                            <div ref={messagesEndRef} />
+                        </div>
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="border-t border-white/20 bg-white/20 backdrop-blur-md px-4 py-3 shadow-lg">
+                        <div className="max-w-4xl mx-auto">
+                            <form onSubmit={handleSubmit} className="flex gap-2">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="p-2.5 text-gray-700 hover:text-blue-600 hover:bg-white/40 rounded-xl transition-colors"
+                                    title="Attach file"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    className="flex-1 px-4 py-2.5 bg-white/50 border border-white/30 rounded-xl focus:bg-white/80 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500 text-gray-900"
+                                    placeholder="Type a message..."
+                                />
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-colors shadow-md font-medium text-sm"
+                                >
+                                    Send
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
