@@ -50,6 +50,8 @@ if os.path.exists(DIST_DIR):
 
 @app.get("/")
 async def root():
-    if os.path.exists(os.path.join(DIST_DIR, "index.html")):
-        return FileResponse(os.path.join(DIST_DIR, "index.html"))
+    index_path = DIST_DIR / "index.html"
+    print(f"Looking for index.html at: {index_path}")  # Debug log
+    if index_path.exists():
+        return FileResponse(str(index_path))
     return {"message": "File Transfer Pro API is running (Frontend not built)"}
