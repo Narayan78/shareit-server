@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 
 const CONFIG = {
-    SERVER_URL: 'ws://localhost:8000/ws',
+    SERVER_URL: 'wss://connect-with-me-0wzq.onrender.com/ws',
     CHUNK_SIZE: 128 * 1024,
     HEADER_MARKER: new Uint8Array([0xFF, 0xFD, 0xFC]),
     MAX_BUFFER: 1024 * 1024,
