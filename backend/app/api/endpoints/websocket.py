@@ -215,6 +215,21 @@ async def handle_peer(websocket: WebSocket, session: TransferSession, user_id: s
                                 })
                             except:
                                 pass
+                
+                # WebRTC Signaling Messages
+                elif msg.get("type") in ["offer", "answer", "ice-candidate", "call-request", "call-response", "call-end"]:
+                    session.update_activity()
+                    # Forward signaling messages to all other peers
+                    for peer in session.peers:
+                        if peer['user_id'] != user_id:
+                            try:
+                                await peer['websocket'].send_json({
+                                    "type": msg.get("type"),
+                                    "data": msg.get("data"),
+                                    "sender": user_id
+                                })
+                            except:
+                                pass
             if "bytes" in data:
                 chunk = data["bytes"]
                 session.bytes_transferred += len(chunk)

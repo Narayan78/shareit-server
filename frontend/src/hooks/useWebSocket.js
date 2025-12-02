@@ -28,6 +28,7 @@ export function useWebSocket() {
     const [sentFiles, setSentFiles] = useState([]);
 
     const ws = useRef(null);
+    const videoSignalHandler = useRef(null);
     const transferState = useRef({
         isTransferring: false,
         currentFile: null, // For receiver
@@ -200,6 +201,18 @@ export function useWebSocket() {
                     transfer_id: msg.transfer_id
                 }));
                 break;
+
+            // WebRTC Signaling Messages
+            case 'offer':
+            case 'answer':
+            case 'ice-candidate':
+            case 'call-request':
+            case 'call-response':
+            case 'call-end':
+                if (videoSignalHandler.current) {
+                    videoSignalHandler.current(msg.type, msg.data, msg.sender);
+                }
+                break;
         }
     }, []);
 
@@ -357,6 +370,22 @@ export function useWebSocket() {
         }]);
     }, [userId]);
 
+    const sendSignal = useCallback((type, data) => {
+        if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket is not connected');
+            return;
+        }
+
+        ws.current.send(JSON.stringify({
+            type: type,
+            data: data
+        }));
+    }, []);
+
+    const setVideoSignalHandler = useCallback((handler) => {
+        videoSignalHandler.current = handler;
+    }, []);
+
     return {
         status,
         sessionId,
@@ -369,6 +398,8 @@ export function useWebSocket() {
         sentFiles,
         connect,
         sendMessage,
+        sendSignal,
+        setVideoSignalHandler,
         setSessionId,
         addToQueue,
         removeFromQueue,

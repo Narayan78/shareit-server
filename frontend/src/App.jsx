@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useVideoCall } from './hooks/useVideoCall';
 import { ConnectionManager } from './components/ConnectionManager';
 import { Chat } from './components/Chat';
+import { VideoCall } from './components/VideoCall';
 
 function App() {
   const {
@@ -15,11 +17,20 @@ function App() {
     userId,
     connect,
     sendMessage,
+    sendSignal,
+    setVideoSignalHandler,
     setSessionId,
     sendFilesDirectly
   } = useWebSocket();
 
+  const videoCall = useVideoCall(sendSignal, userId);
+
   const [showChat, setShowChat] = useState(false);
+
+  // Connect video signal handler
+  useEffect(() => {
+    setVideoSignalHandler(videoCall.handleSignal);
+  }, [setVideoSignalHandler, videoCall.handleSignal]);
 
   // Auto-open chat when connected
   useEffect(() => {
@@ -91,6 +102,22 @@ function App() {
         stats={transferStats}
         receivedFiles={receivedFiles}
         sentFiles={sentFiles}
+        onStartVideoCall={videoCall.startCall}
+      />
+
+      {/* Video Call */}
+      <VideoCall
+        callState={videoCall.callState}
+        localStream={videoCall.localStream}
+        remoteStream={videoCall.remoteStream}
+        isAudioMuted={videoCall.isAudioMuted}
+        isVideoOff={videoCall.isVideoOff}
+        incomingCall={videoCall.incomingCall}
+        onAccept={videoCall.acceptCall}
+        onReject={videoCall.rejectCall}
+        onEndCall={videoCall.endCall}
+        onToggleMute={videoCall.toggleMute}
+        onToggleVideo={videoCall.toggleVideo}
       />
     </div>
   );
