@@ -1,10 +1,34 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+// ICE server configuration with STUN and TURN servers
+// STUN servers help discover public IP addresses
+// TURN servers relay traffic when direct peer-to-peer connection fails (e.g., across different networks)
 const ICE_SERVERS = {
     iceServers: [
+        // Google's public STUN servers for public IP discovery
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+
+        // OpenRelay TURN servers for NAT traversal (free for testing)
+        // These relay traffic when direct connections fail across different networks
+        {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
+    ],
+    // Pre-gather ICE candidates for faster connection establishment
+    iceCandidatePoolSize: 10
 };
 
 export function useVideoCall(sendSignal, userId) {
@@ -53,9 +77,12 @@ export function useVideoCall(sendSignal, userId) {
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate && sendSignal) {
+                console.log('ICE candidate type:', event.candidate.type, '| Protocol:', event.candidate.protocol);
                 sendSignal('ice-candidate', {
                     candidate: event.candidate
                 });
+            } else if (!event.candidate) {
+                console.log('ICE gathering completed');
             }
         };
 
@@ -67,6 +94,16 @@ export function useVideoCall(sendSignal, userId) {
             } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
                 endCall();
             }
+        };
+
+        // Log ICE connection state for debugging
+        pc.oniceconnectionstatechange = () => {
+            console.log('ICE connection state:', pc.iceConnectionState);
+        };
+
+        // Log ICE gathering state
+        pc.onicegatheringstatechange = () => {
+            console.log('ICE gathering state:', pc.iceGatheringState);
         };
 
         peerConnection.current = pc;
